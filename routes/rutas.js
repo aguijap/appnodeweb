@@ -1,27 +1,36 @@
 // routes/rutas.js
 
-const fs = require('fs');      // Módulo para operaciones de sistema de archivos
-const path = require('path');  // Módulo para manejar rutas de archivos
-const os = require('os');      // Módulo para obtener información del sistema operativo
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const winston = require('winston');
+
+// Configuración de winston para registrar en archivo y consola
+const logDir = path.join(__dirname, '../log');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'verbose',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message }) => {
+      return `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+    })
+  ),
+  transports: [
+    new winston.transports.File({ filename: path.join(logDir, 'nodeweb.log') }),
+    new winston.transports.Console()
+  ]
+});
 
 /**
- * Registra cada petición HTTP en consola y en un archivo de log.
+ * Registra cada petición HTTP usando winston.
  * @param {http.IncomingMessage} req - Objeto de la petición HTTP.
  */
 function logRequest(req) {
-  const now = new Date().toISOString();
-  const logLine = `[${now}] ${req.method} ${req.url}\n`;
-  // Mostrar en consola
-  console.log(logLine.trim());
-  // Guardar en archivo de log
-  const logDir = path.join(__dirname, '../log');
-  const logFile = path.join(logDir, 'nodeweb.log');
-  if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir, { recursive: true });
-  }
-  fs.appendFile(logFile, logLine, err => {
-    if (err) console.error('Error escribiendo en el log:', err);
-  });
+  logger.info(`${req.method} ${req.url}`);
 }
 
 /**
@@ -38,6 +47,7 @@ function rutas(req, res) {
       const filePath = path.join(__dirname, 'ruta1.html');
       fs.readFile(filePath, 'utf8', (err, data) => {
         if (err) {
+          logger.error(`Error leyendo ruta1.html: ${err.message}`);
           res.writeHead(500, { 'Content-Type': 'text/plain' });
           res.end('Error interno del servidor');
         } else {
@@ -68,10 +78,13 @@ function rutas(req, res) {
       break;
     default:
       // Responder 404 para rutas no definidas
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      logger.warn(`Ruta no encontrada: ${req.url}`);
+      if (!res.headersSent) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+      }
       res.end('Ruta no encontrada');
   }
 }
 
 // Exportar la función de rutas para usarla en index.js
-module.exports = rutas;
+module.exports =  rutas ;
