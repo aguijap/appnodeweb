@@ -38,4 +38,32 @@ npm install -g pm2
 pm2 start index.js --name appwebnode
 ```
 
----
+## Docker
+
+### Crear la imagen Docker
+
+1. Crea un archivo `Dockerfile` en la raíz del proyecto con el siguiente contenido:
+
+    ```dockerfile
+    FROM node:20
+    WORKDIR /usr/src/app
+    COPY package*.json ./
+    RUN npm install
+    COPY . .
+    EXPOSE 3000
+    CMD ["node", "index.js"]
+    ```
+
+2. Construye la imagen Docker con el nombre `miapp`:
+
+    ```sh
+    docker build -t miapp .
+    ```
+
+3. Arranca el contenedor llamado `miappcont`:
+
+    ```sh
+    docker run -d --name miappcont -p 3000:3000 miapp
+    ```
+
+El servidor estará disponible en [http://localhost:3000](http://localhost:3000) desde tu máquina anfitriona.
